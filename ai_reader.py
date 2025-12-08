@@ -50,11 +50,12 @@ def extract_prayer_times(image_bytes):
     return response.text
 
 if __name__ == "__main__":
-    
     client = genai.Client(api_key=GEMINI_API_KEY) # Assumes GEMINI_API_KEY is set in environment
     # Example usage with your image:
     # get the prayer time as bytes
-    with open('prayer_times_november.jpeg', 'rb') as img_file:
+    with open('prayer_times_december.png', 'rb') as img_file:
         image_bytes = img_file.read()
     extracted_json = extract_prayer_times(image_bytes)
-    print(extracted_json)
+    # write to json file
+    with open('prayer_times_december.json', 'w') as json_file:
+        json_file.write(extracted_json)
