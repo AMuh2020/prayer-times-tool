@@ -1,4 +1,5 @@
-# read text from an image using OCR
+
+# read text from an image using OCR (unfinished, not used in main project, Gemini would be better anyways)
 import pytesseract
 from PIL import Image
 
