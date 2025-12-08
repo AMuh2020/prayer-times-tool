@@ -31,6 +31,7 @@ func main() {
 	// Define command-line flags
 	filename := flag.String("file", "", "Path to the prayer times JSON file (required)")
 	reminderMinutes := flag.Int("reminder", 10, "Reminder time before prayer in minutes")
+	duration := flag.Int("duration", 15, "Duration of each prayer event in minutes")
 	flag.Parse()
 
 	// Validate required flag
@@ -69,7 +70,7 @@ func main() {
 	for _, dailyTime := range prayerData.DailyTimes {
 		for _, prayerName := range prayers {
 			prayerTime := getPrayerTime(dailyTime, prayerName)
-			event := createEvent(prayerData.Year, getMonthNumber(prayerData.Month), dailyTime.Day, prayerName, prayerTime, *reminderMinutes, loc)
+			event := createEvent(prayerData.Year, getMonthNumber(prayerData.Month), dailyTime.Day, prayerName, prayerTime, *reminderMinutes, *duration, loc)
 			cal.AddVEvent(event)
 		}
 	}
@@ -108,7 +109,7 @@ func getPrayerTime(dailyTime DailyTime, prayerName string) string {
 	}
 }
 
-func createEvent(year, month, day int, prayerName, prayerTime string, reminderMinutes int, loc *time.Location) *ics.VEvent {
+func createEvent(year, month, day int, prayerName, prayerTime string, reminderMinutes int, duration int, loc *time.Location) *ics.VEvent {
 	event := ics.NewEvent(fmt.Sprintf("Prayer-%s-%d-%s@amalworks.dev", prayerName, day, prayerTime))
 	event.SetSummary(fmt.Sprintf("%s Prayer", prayerName))
 	event.SetDescription(fmt.Sprintf("Time for %s prayer.", prayerName))
@@ -120,7 +121,7 @@ func createEvent(year, month, day int, prayerName, prayerTime string, reminderMi
 
 	// Create start and end times
 	startTime := time.Date(year, time.Month(month), day, hour, minute, 0, 0, loc)
-	endTime := startTime.Add(15 * time.Minute) // 15 minutes for prayer
+	endTime := startTime.Add(time.Duration(duration) * time.Minute) // duration minutes for prayer
 
 	event.SetStartAt(startTime)
 	event.SetEndAt(endTime)
