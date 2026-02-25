@@ -11,6 +11,10 @@ import (
 	ics "github.com/arran4/golang-ical"
 )
 
+type Data struct {
+	Months []PrayerData `json:"months"`
+}
+
 type PrayerData struct {
 	Month      string      `json:"month"`
 	Year       int         `json:"year"`
@@ -47,36 +51,57 @@ func main() {
 		log.Fatalf("Error reading file: %v", err)
 	}
 
-	var prayerData PrayerData
-	if err := json.Unmarshal(data, &prayerData); err != nil {
+	var dataStruct Data
+	if err := json.Unmarshal(data, &dataStruct); err != nil {
 		log.Fatalf("Error parsing JSON: %v", err)
 	}
 
 	// Create calendar
 	cal := ics.NewCalendar()
 	cal.SetVersion("2.0")
-	cal.SetProductId(fmt.Sprintf("-//Durham Prayer Times for %s %d//com.amalworks.prayer_times//", prayerData.Month, prayerData.Year))
-	cal.SetCalscale("GREGORIAN")
-	cal.SetName(fmt.Sprintf("Prayer Times Month: %s %d", prayerData.Month, prayerData.Year))
 
+	// get the first month data
+	firstMonthName := dataStruct.Months[0].Month
+	firstMonthYear := dataStruct.Months[0].Year
+	lastMonthName := dataStruct.Months[len(dataStruct.Months)-1].Month
+	lastMonthYear := dataStruct.Months[len(dataStruct.Months)-1].Year
+	firstDay := dataStruct.Months[0].DailyTimes[0].Day
+	lastDay := dataStruct.Months[len(dataStruct.Months)-1].DailyTimes[len(dataStruct.Months[len(dataStruct.Months)-1].DailyTimes)-1].Day
+
+	prodID := "Durham Prayer Times for"
+	calname := ""
+
+	if firstMonthName == lastMonthName && firstMonthYear == lastMonthYear {
+		prodID += fmt.Sprintf(" %s %d", firstMonthName, firstMonthYear)
+		calname = fmt.Sprintf("Prayer Times Month: %s %d", firstMonthName, firstMonthYear)
+	} else {
+		prodID += fmt.Sprintf(" %d %s %d to %d %s %d", firstDay, firstMonthName, firstMonthYear, lastDay, lastMonthName, lastMonthYear)
+		calname = fmt.Sprintf("Prayer Times: %d %s %d to %d %s %d", firstDay, firstMonthName, firstMonthYear, lastDay, lastMonthName, lastMonthYear)
+	}
+
+	cal.SetCalscale("GREGORIAN")
+	cal.SetName(calname)
+	cal.SetProductId(prodID)
 	// Set timezone
 	loc, err := time.LoadLocation("Europe/London")
 	if err != nil {
 		log.Fatalf("Error loading timezone: %v", err)
 	}
 
-	// Create events for each prayer time
-	prayers := []string{"Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"} // Excluding Sunrise
-	for _, dailyTime := range prayerData.DailyTimes {
-		for _, prayerName := range prayers {
-			prayerTime := getPrayerTime(dailyTime, prayerName)
-			event := createEvent(prayerData.Year, getMonthNumber(prayerData.Month), dailyTime.Day, prayerName, prayerTime, *reminderMinutes, *duration, loc)
-			cal.AddVEvent(event)
+	for _, prayerData := range dataStruct.Months {
+		// Create events for each prayer time
+		prayers := []string{"Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"} // Excluding Sunrise
+		for _, dailyTime := range prayerData.DailyTimes {
+			for _, prayerName := range prayers {
+				prayerTime := getPrayerTime(dailyTime, prayerName)
+				event := createEvent(prayerData.Year, getMonthNumber(prayerData.Month), dailyTime.Day, prayerName, prayerTime, *reminderMinutes, *duration, loc)
+				cal.AddVEvent(event)
+			}
 		}
 	}
 
 	// Write to file
-	outputFile := "prayer_times.ics"
+	outputFile := fmt.Sprintf("prayer_times_%s_%d.ics", firstMonthName, firstMonthYear)
 	f, err := os.Create(outputFile)
 	if err != nil {
 		log.Fatalf("Error creating output file: %v", err)

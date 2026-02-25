@@ -67,8 +67,8 @@ def create_event(day, month, year, prayer_name, prayer_time, reminders_before_mi
 
     return event
 
-def test_prayer_times():
-    with open('test_november.json', 'r') as f:
+def test_prayer_times(filename):
+    with open(filename, 'r') as f:
         prayer_data = f.read()
     return prayer_data
 
@@ -93,34 +93,55 @@ def main():
     cal.add('version', '2.0')
     
 
-    # get the prayer times json from the image
-    with open('prayer_times_november.jpeg', 'rb') as img_file:
-        image_bytes = img_file.read()
+    # # get the prayer times json from the image
+    # with open('prayer_times_november.jpeg', 'rb') as img_file:
+    #     image_bytes = img_file.read()
 
     # extracted_json = extract_prayer_times(image_bytes)
-    extracted_json = test_prayer_times()
+    extracted_json = test_prayer_times("prayer_times_ramadan.json")
     prayer_data = json.loads(extracted_json)
 
-    month = prayer_data['month']
-    year = prayer_data['year']
+    first_month = prayer_data['months'][0]['month']
+    first_day = prayer_data['months'][0]['daily_times'][0]['day']
 
-    cal.add('prodid', f'-//Durham Prayer Times for {month} {year}//com.amalworks.prayer_times//')
-    cal.add('X-WR-CALNAME', f'Prayer Times Month: {month} {year}')
+    last_month = prayer_data['months'][-1]['month']
+    last_day = prayer_data['months'][-1]['daily_times'][-1]['day']
 
-    for daily_time in prayer_data['daily_times']:
-        day = daily_time['day']
-        print(f"Processing day {day}...")
-        for prayer_name in ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']: # Excluding Sunrise
-            prayer_time = daily_time[prayer_name]
-            event = create_event(day, month, year, prayer_name, prayer_time, reminders_before_minutes, tz)
-            cal.add_component(event)
+    year = prayer_data['months'][0]['year']
+    year_last = prayer_data['months'][-1]['year']
 
+    prodid = "Durham Prayer times for"
+    calname = ""
+
+    if first_month == last_month and year == year_last:
+        prodid += f" {first_month} {year}"
+        calname = f'Prayer Times Month: {first_month} {year}'
+    else:
+        prodid += f" {first_day} {first_month} {year} to {last_day} {last_month} {year_last}"
+        calname = f'Prayer Times Months: {first_day} {first_month} {year} to {last_day} {last_month} {year_last}'
+
+    cal.add('prodid', f'-//{prodid}//com.amalworks.prayer_times//')
+    cal.add('X-WR-CALNAME', f'{calname}')
+    
+    for month_data in prayer_data['months']:
+        month = month_data['month']
+        year = month_data['year']
+
+        for daily_time in month_data['daily_times']:
+            day = daily_time['day']
+            print(f"Processing day {day}...")
+            for prayer_name in ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']: # Excluding Sunrise
+                prayer_time = daily_time[prayer_name]
+                event = create_event(day, month, year, prayer_name, prayer_time, reminders_before_minutes, tz)
+                cal.add_component(event)
+    
+    
     ics_content = cal.to_ical()
 
-    # with open('prayer_times.ics', 'wb') as f:
-    #     f.write(ics_content)
+    with open(f'prayer_times_{first_month}_{year}.ics', 'wb') as f:
+        f.write(ics_content)
 
-    print("ICS file 'prayer_times.ics' created successfully.")
+    print(f"ICS file 'prayer_times_{first_month}_{year}.ics' created successfully.")
 
 if __name__ == "__main__":
     main()
