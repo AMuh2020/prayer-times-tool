@@ -36,11 +36,13 @@ func main() {
 	filename := flag.String("file", "", "Path to the prayer times JSON file (required)")
 	reminderMinutes := flag.Int("reminder", 10, "Reminder time before prayer in minutes")
 	duration := flag.Int("duration", 15, "Duration of each prayer event in minutes")
+	name := flag.String("name", "", "Optional name for the calendar (replaces prodid and calname)")
+	outputMode := flag.String("output", "file", "Output mode: 'file' or 'stdout'")
 	flag.Parse()
 
 	// Validate required flag
 	if *filename == "" {
-		fmt.Println("Error: -file flag is required")
+		fmt.Fprintln(os.Stderr, "Error: -file flag is required")
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -79,6 +81,12 @@ func main() {
 		calname = fmt.Sprintf("Prayer Times: %d %s %d to %d %s %d", firstDay, firstMonthName, firstMonthYear, lastDay, lastMonthName, lastMonthYear)
 	}
 
+	// if optional name, set it as that
+	if *name != "" {
+		prodID = *name
+		calname = *name
+	}
+
 	cal.SetCalscale("GREGORIAN")
 	cal.SetName(calname)
 	cal.SetProductId(prodID)
@@ -100,19 +108,25 @@ func main() {
 		}
 	}
 
-	// Write to file
-	outputFile := fmt.Sprintf("prayer_times_%s_%d.ics", firstMonthName, firstMonthYear)
-	f, err := os.Create(outputFile)
-	if err != nil {
-		log.Fatalf("Error creating output file: %v", err)
-	}
-	defer f.Close()
+	// Write to file or stdout
+	if *outputMode == "stdout" {
+		if err := cal.SerializeTo(os.Stdout); err != nil {
+			log.Fatalf("Error writing calendar to stdout: %v", err)
+		}
+	} else {
+		outputFile := fmt.Sprintf("prayer_times_%s_%d.ics", firstMonthName, firstMonthYear)
+		f, err := os.Create(outputFile)
+		if err != nil {
+			log.Fatalf("Error creating output file: %v", err)
+		}
+		defer f.Close()
 
-	if err := cal.SerializeTo(f); err != nil {
-		log.Fatalf("Error writing calendar: %v", err)
-	}
+		if err := cal.SerializeTo(f); err != nil {
+			log.Fatalf("Error writing calendar: %v", err)
+		}
 
-	fmt.Printf("ICS file '%s' created successfully.\n", outputFile)
+		fmt.Fprintf(os.Stderr, "ICS file '%s' created successfully.\n", outputFile)
+	}
 }
 
 func getPrayerTime(dailyTime DailyTime, prayerName string) string {
