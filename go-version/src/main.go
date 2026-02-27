@@ -120,9 +120,17 @@ func main() {
 					currentDay := currentTime.Day()
 					currentMonth := currentTime.Month()
 					currentYear := currentTime.Year()
-					if dailyTime.Day < currentDay &&
-						prayerData.Month == currentMonth.String() &&
-						prayerData.Year == currentYear {
+
+					// skip if in a past year
+					if prayerData.Year < currentYear {
+						continue
+					}
+					// skip if in a past month of the same year
+					if prayerData.Year == currentYear && getMonthNumber(prayerData.Month) < int(currentMonth) {
+						continue
+					}
+					// skip if in a past day of the same month and year
+					if prayerData.Year == currentYear && getMonthNumber(prayerData.Month) == int(currentMonth) && dailyTime.Day < currentDay {
 						continue
 					}
 				}
