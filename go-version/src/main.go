@@ -37,6 +37,8 @@ func main() {
 	reminderMinutes := flag.Int("reminder", 10, "Reminder time before prayer in minutes")
 	duration := flag.Int("duration", 15, "Duration of each prayer event in minutes")
 	name := flag.String("name", "", "Optional name for the calendar (replaces prodid and calname)")
+	startFromToday := flag.Bool("startFromToday", false, "Start calendar from today's date")
+	hideFridayDhuhr := flag.Bool("hideFridayDhuhr", false, "Hide Friday Dhuhr prayer")
 	outputMode := flag.String("output", "file", "Output mode: 'file' or 'stdout'")
 	flag.Parse()
 
@@ -44,6 +46,16 @@ func main() {
 	if *filename == "" {
 		fmt.Fprintln(os.Stderr, "Error: -file flag is required")
 		flag.Usage()
+		os.Exit(1)
+	}
+
+	// validate minute flags
+	if *reminderMinutes < 0 {
+		fmt.Fprintln(os.Stderr, "Error: -reminder must be a non-negative integer")
+		os.Exit(1)
+	}
+	if *duration < 0 {
+		fmt.Fprintln(os.Stderr, "Error: -duration must be a non-negative integer")
 		os.Exit(1)
 	}
 
@@ -102,6 +114,25 @@ func main() {
 		for _, dailyTime := range prayerData.DailyTimes {
 			for _, prayerName := range prayers {
 				prayerTime := getPrayerTime(dailyTime, prayerName)
+				// start from current server day
+				if *startFromToday {
+					currentTime := time.Now()
+					currentDay := currentTime.Day()
+					currentMonth := currentTime.Month()
+					currentYear := currentTime.Year()
+					if dailyTime.Day < currentDay &&
+						prayerData.Month == currentMonth.String() &&
+						prayerData.Year == currentYear {
+						continue
+					}
+				}
+				// Skip Friday Dhuhr if flag is set
+				if *hideFridayDhuhr && prayerName == "Dhuhr" {
+					date := time.Date(prayerData.Year, time.Month(getMonthNumber(prayerData.Month)), dailyTime.Day, 0, 0, 0, 0, loc)
+					if date.Weekday() == time.Friday {
+						continue
+					}
+				}
 				event := createEvent(prayerData.Year, getMonthNumber(prayerData.Month), dailyTime.Day, prayerName, prayerTime, *reminderMinutes, *duration, loc)
 				cal.AddVEvent(event)
 			}
